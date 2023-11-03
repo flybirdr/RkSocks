@@ -29,7 +29,7 @@ MY_SRC_FILES := \
 				$(LOCAL_PATH)/RingBuffer.cpp \
 				$(LOCAL_PATH)/Tunnel.cpp \
 				$(LOCAL_PATH)/Socks5Tunnel.cpp \
-				$(LOCAL_PATH)/Socks5Server1.cpp
+				$(LOCAL_PATH)/Socks5Server.cpp
 #LOCAL_SRC_FILES := $(addprefix $(LOCAL_PATH)/, $(SRC_FILES))
 LOCAL_SRC_FILES := $(MY_SRC_FILES)
 LOCAL_C_INCLUDES := \

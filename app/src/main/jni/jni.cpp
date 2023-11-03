@@ -6,7 +6,7 @@
 #include <signal.h>
 #include <string.h>
 #include "Socks5Config.h"
-#include "Socks5Server1.h"
+#include "Socks5Server.h"
 #include "Logger.h"
 #include <yaml.h>
 
@@ -21,7 +21,7 @@ JavaVM *gJvm;
 jobject vpnService;
 static pthread_t work_thread;
 static pthread_key_t current_jni_env;
-std::unique_ptr<R::Socks5Server1> socksServer{nullptr};
+std::unique_ptr<R::Socks5Server> socksServer{nullptr};
 Socks5Config gSocks5Config;
 
 JNIEXPORT jint
@@ -262,7 +262,7 @@ Java_com_rookie_r_RService_nativeStart(JNIEnv *env, jobject thiz,
     exit_free_parser:
     yaml_parser_delete(&parser);
 
-    socksServer = std::make_unique<R::Socks5Server1>(gSocks5Config);
+    socksServer = std::make_unique<R::Socks5Server>(gSocks5Config);
     socksServer->run();
 
     const jbyte *bytes;

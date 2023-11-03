@@ -3,19 +3,19 @@
 //
 
 #include <arpa/inet.h>
-#include "Socks5Server1.h"
+#include "Socks5Server.h"
 #include "Logger.h"
 #include "Util.h"
 
 namespace R {
-    Socks5Server1::Socks5Server1(Socks5Config &config) :
+    Socks5Server::Socks5Server(Socks5Config &config) :
             mConfig(config),
             mServerSocketFd(0),
             mLooper(std::make_shared<EventLoop>(this)) {
 
     }
 
-    void Socks5Server1::run() {
+    void Socks5Server::run() {
         mServerSocketFd = createSocks5ServerSocket();
         if (!mServerSocketFd) {
             LOGE("server socket not available!!");
@@ -27,15 +27,15 @@ namespace R {
         LOGI("run socks server!");
     }
 
-    void Socks5Server1::quit() {
+    void Socks5Server::quit() {
         mLooper->quit();
     }
 
-    Socks5Server1::~Socks5Server1() {
+    Socks5Server::~Socks5Server() {
         mLooper->quit();
     }
 
-    int Socks5Server1::createSocks5ServerSocket() const {
+    int Socks5Server::createSocks5ServerSocket() const {
         int ret;
         int fd;
         sockaddr_in addr_in{0};
@@ -70,7 +70,7 @@ namespace R {
         return 0;
     }
 
-    void Socks5Server1::handleServerSocketRead() {
+    void Socks5Server::handleServerSocketRead() {
         int fd = mServerSocketFd;
         sockaddr_in acceptAddr{0};
         socklen_t len = sizeof(acceptAddr);
@@ -108,7 +108,7 @@ namespace R {
         LOGI("register read event,fd=%d", acceptFd);
     }
 
-    void Socks5Server1::handleServerSocketClosed() {
+    void Socks5Server::handleServerSocketClosed() {
         if (mServerSocketFd) {
             LOGE("close server fd=%d", mServerSocketFd);
             mLooper->unregister(mServerSocketFd);
@@ -117,7 +117,7 @@ namespace R {
         }
     }
 
-    void Socks5Server1::onReadEvent(void *ptr) {
+    void Socks5Server::onReadEvent(void *ptr) {
         auto context = static_cast<TunnelContext *>(ptr);
         if (context == nullptr) {
             handleServerSocketRead();
@@ -126,14 +126,14 @@ namespace R {
         }
     }
 
-    void Socks5Server1::onWriteEvent(void *ptr) {
+    void Socks5Server::onWriteEvent(void *ptr) {
         auto context = static_cast<TunnelContext *>(ptr);
         if (context) {
             context->tunnel->handleWrite(context);
         }
     }
 
-    void Socks5Server1::onErrorEvent(void *ptr) {
+    void Socks5Server::onErrorEvent(void *ptr) {
         auto context = static_cast<TunnelContext *>(ptr);
         if (context) {
             context->tunnel->handleClosed(context);
@@ -143,7 +143,7 @@ namespace R {
         }
     }
 
-    void Socks5Server1::onHupEvent(void *ptr) {
+    void Socks5Server::onHupEvent(void *ptr) {
         auto context = static_cast<TunnelContext *>(ptr);
         if (context) {
             context->tunnel->handleClosed(context);
@@ -153,7 +153,7 @@ namespace R {
         }
     }
 
-    void Socks5Server1::handleTunnelClosed(Tunnel *tunnel) {
+    void Socks5Server::handleTunnelClosed(Tunnel *tunnel) {
 //        std::unique_lock<std::mutex> lock(mTunnelLock);
 //        mTunnels.remove(tunnel);
 //        delete tunnel;
