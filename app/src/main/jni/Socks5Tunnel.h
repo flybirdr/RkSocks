@@ -8,6 +8,7 @@
 #include "Tunnel.h"
 #include "Socks5Config.h"
 #include "TCPTunnel.h"
+#include <vector>
 
 namespace R {
 
@@ -42,26 +43,46 @@ namespace R {
     private:
         Socks5Config mConfig;
         std::unique_ptr<Socks5Info> mSocksInfo;
-
+        int mBindServerSocket;
+        TunnelContext *mBindFakeTunnelContext;
+        int mUdpServerSocketFd;
+        TunnelContext *mUdpFakeTunnelContext;
+        std::vector<Tunnel *> *mUdpTunnels;
     public:
         Socks5Tunnel() = delete;
 
-        Socks5Tunnel(Socks5Config& socksInfo,
+        Socks5Tunnel(Socks5Config &socksInfo,
                      std::shared_ptr<EventLoop> &loop);
 
         ~Socks5Tunnel() override;
 
         bool attachOutboundContext() override;
 
-        void inboundHandleHandshake() override;
+        void handleInboundHandshake() override;
 
-        void outboundHandleHandshake() override;
+        void handleOutboundHandshake() override;
+
+        void handleRead(TunnelContext *context) override;
+
+        void handleClosed(TunnelContext *context) override;
 
         void packData() override;
 
         void unpackData() override;
 
-        void createUdpAssociateTunnel();
+        int createBindServerSocket(sockaddr_in *out);
+
+        void handleBindServerSocketRead();
+
+        void handleBindClosed();
+
+        TunnelContext *createEmptyTunnelContext(int fd,sockaddr_in sockaddrIn);
+
+        int createUdpServerSocket(sockaddr_in *in,sockaddr_in *out) const;
+
+        void handleUdpServerSocketRead();
+
+        void handleUdpClosed();
     };
 
 } // R

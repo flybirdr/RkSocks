@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <sstream>
 
 namespace R {
     RingBuffer::RingBuffer(int capacity)
@@ -151,12 +152,65 @@ namespace R {
         mAvailable -= max;
     }
 
-    uint8_t RingBuffer::get1(int i) {
+    uint8_t RingBuffer::get(int i) {
         if (length() <= i) {
             return -1;
         }
-        return mBuffer[mHead + i];
-
+        int index = mHead + i;
+        if (index >= mCapacity) {
+            index -= mCapacity;
+        }
+        return mBuffer[index];
     }
 
+    void RingBuffer::set(int i, uint8_t value) {
+        if (i < 0 && i >= length()) {
+            return;
+        }
+        int index = mHead + i;
+        if (index >= mCapacity) {
+            index -= mCapacity;
+        }
+        mBuffer[index] = value;
+    }
+
+    int RingBuffer::write1(uint8_t data) {
+        return write(reinterpret_cast<const char *>(&data), sizeof(data));
+    }
+
+    int RingBuffer::write2(uint16_t data) {
+        return write(reinterpret_cast<const char *>(&data), sizeof(data));
+    }
+
+    int RingBuffer::write4(uint32_t data) {
+        return write(reinterpret_cast<const char *>(&data), sizeof(data));
+    }
+
+    int RingBuffer::write8(uint64_t data) {
+        return write(reinterpret_cast<const char *>(&data), sizeof(data));
+    }
+
+    std::string RingBuffer::toString() {
+        if (length() == 0) {
+            return "";
+        }
+        static char tab[] = "0123456789ABCDEF";
+        std::ostringstream os;
+        if (mTail < mHead) {
+            for (int i = mHead; i < mCapacity; ++i) {
+                char c = mBuffer[i];
+                os << tab[c & 0x0f] << tab[(c >> 4) & 0x0f];
+            }
+            for (int i = 0; i <= mTail; ++i) {
+                char c = mBuffer[i];
+                os << tab[c & 0x0f] << tab[(c >> 4) & 0x0f];
+            }
+        } else {
+            for (int i = mHead; i <= mTail; ++i) {
+                char c = mBuffer[i];
+                os << tab[c & 0x0f] << tab[(c >> 4) & 0x0f];
+            }
+        }
+        return os.str();
+    }
 }  // namespace R

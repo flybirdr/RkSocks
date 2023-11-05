@@ -107,12 +107,12 @@ namespace R {
         }
     }
 
-    void Socks5UdpTunnel::inboundHandleHandshake() {
-        Tunnel::inboundHandleHandshake();
+    void Socks5UdpTunnel::handleInboundHandshake() {
+        Tunnel::handleInboundHandshake();
     }
 
-    void Socks5UdpTunnel::outboundHandleHandshake() {
-        Tunnel::outboundHandleHandshake();
+    void Socks5UdpTunnel::handleOutboundHandshake() {
+        Tunnel::handleOutboundHandshake();
     }
 
     void Socks5UdpTunnel::packData() {
@@ -123,7 +123,7 @@ namespace R {
         }
         int headerLen = parseHeaderAndAddr(readBuffer);
         mHeader->readFrom(readBuffer, headerLen);
-        int frag = mHeader->get1(2);
+        int frag = mHeader->get(2);
         if (frag) {
             //drop
         } else {

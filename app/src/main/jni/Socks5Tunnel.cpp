@@ -8,6 +8,7 @@
 #include "Logger.h"
 #include "VpnUtil.h"
 #include "TCPTunnel.h"
+#include "Socks5UdpTunnel.h"
 
 namespace R {
     Socks5Tunnel::Socks5Tunnel(Socks5Config &socksInfo,
@@ -16,7 +17,12 @@ namespace R {
             mConfig(socksInfo),
             mSocksInfo(new Socks5Info{
                     .handshake=SOCKS5_HANDSHAKE::SOCKS5_STEP1
-            }) {
+            }),
+            mBindServerSocket(0),
+            mBindFakeTunnelContext(nullptr),
+            mUdpServerSocketFd(0),
+            mUdpFakeTunnelContext(nullptr),
+            mUdpTunnels(nullptr) {
 
     }
 
@@ -61,15 +67,15 @@ namespace R {
         return true;
     }
 
-    void Socks5Tunnel::inboundHandleHandshake() {
+    void Socks5Tunnel::handleInboundHandshake() {
         int fd = inbound->fd;
         auto inBuffer = inbound->inBuffer;
         auto outBuffer = inbound->outBuffer;
         int length = inBuffer->length();
         auto handshake = mSocksInfo->handshake;
-        //握手第一阶段：
+        //握手第一阶段:
         //1、校验协议版本号
-        //2、选择验证类型
+        //2、选择验证方法
         if (handshake == SOCKS5_HANDSHAKE::SOCKS5_STEP1) {
             if (length < 3) {
                 LOGE("invaid socks request length=%d", length);
@@ -116,11 +122,11 @@ namespace R {
                     mSocksInfo->handshake = SOCKS5_HANDSHAKE::SOCKS5_STEP2;
                     mSocksInfo->method = method;
                 }
-                LOGI("client inboundHandleHandshake step1 fd=%d", fd);
+                LOGI("client handleInboundHandshake step1 fd=%d", fd);
             }
             return;
         }
-        //握手第二阶段
+        //握手第二阶段:
         //1、进行鉴权
         if (handshake == SOCKS5_HANDSHAKE::SOCKS5_STEP2) {
 
@@ -138,19 +144,18 @@ namespace R {
                         LOGE("readFrom invalid length=%d", length);
                         return;
                     }
-                    char *userNameChar = new char[userLen];
+                    char userNameChar[userLen];
                     inBuffer->read(userNameChar, userLen);
                     std::string userName(userNameChar, userLen);
-                    delete[] userNameChar;
+
                     int passLen = inBuffer->read1();
                     if (passLen - inBuffer->length() > 0) {
                         LOGE("readFrom invalid length=%d", length);
                         return;
                     }
-                    char *pwChar = new char[passLen];
+                    char pwChar[passLen];
                     inBuffer->read(pwChar, passLen);
                     std::string passWord(pwChar, passLen);
-                    delete[] pwChar;
                     if (userName == mConfig.userName &&
                         passWord == mConfig.password) {
                         mSocksInfo->handshake = SOCKS5_HANDSHAKE::SOCKS5_STEP3;
@@ -160,7 +165,7 @@ namespace R {
                     std::string responseStr = Util::toHexString(response, sizeof(response));
                     LOGI("step2 response=%s", responseStr.c_str());
                     outBuffer->write(response, sizeof(response));
-                    LOGI("client inboundHandleHandshake step2 fd=%d", fd);
+                    LOGI("client handleInboundHandshake step2 fd=%d", fd);
                     break;
                 }
                 default: {
@@ -170,7 +175,12 @@ namespace R {
             }
             return;
         }
+        //握手第三阶段:
+        //1、处理请求[CONNECT/BIND/UDP ASSOCIATE]
+        //2、建立CONNECT转发通道/建立BIND监听/建立UDP监听
+        //3、对于BIND、UDP当客户端连入后建立数据转发通道
         if (handshake == SOCKS5_HANDSHAKE::SOCKS5_STEP3) {
+            int oriLength = inBuffer->length();
             int version = inBuffer->read1();
             if (version != 0x05) {
                 LOGE("unsupported socket version=%d", version);
@@ -179,65 +189,49 @@ namespace R {
             int cmd = inBuffer->read1();
             int rev = inBuffer->read1();
             int atyp = inBuffer->read1();
-            int addrOffset = 0;
             int addrLen = 0;
+
             //ipv4
             if (atyp == 0x01) {
                 addrLen = 4;
             }
                 //域名
             else if (atyp == 0x03) {
-                addrOffset = 1;
                 addrLen = inBuffer->read1();
             }
                 //ipv6
             else if (atyp == 0x04) {
                 addrLen = 16;
             }
-            std::string addr;
-            if (atyp == 0x01) {
-                //ipv4
-                struct in_addr inAddr{0};
-//                inAddr.s_addr = (inBuffer->read1() << 24) |
-//                                (inBuffer->read1() << 16) |
-//                                (inBuffer->read1() << 8) |
-//                                (inBuffer->read1() << 0);
-                inAddr.s_addr = inBuffer->read4();
+            char addrBuffer[addrLen];
 
-                char *addrc = inet_ntoa(inAddr);
-                addr = std::string(addrc);
-            } else if (atyp == 0x03) {
-                //域名
-                char *addrChar = new char[addrLen];
-                inBuffer->read(addrChar, addrLen);
-                addr = std::string(addrChar, addrLen);
-                delete[] addrChar;
-            } else if (atyp == 0x04) {
-                //ipv6
-            }
-
-            int16_t port = htons(inBuffer->read2());
+            inBuffer->read(addrBuffer, addrLen);
+            uint16_t port = inBuffer->read2();
 
             mSocksInfo->handshake = SOCKS5_HANDSHAKE::SOCKS5_FINISH;
-            mSocksInfo->remoteAddr = addr;
-            mSocksInfo->remotePort = port;
+            mSocksInfo->remoteAddr = inet_ntoa(*(in_addr *) addrBuffer);
+            mSocksInfo->remotePort = ntohs(port);
             mSocksInfo->cmd = cmd;
             mSocksInfo->atyp = atyp;
             inbound->tunnelStage = TunnelStage::STAGE_TRANSFER;
 
-            int responseLen = 1 + 1 + 1 + 1 + addrOffset + addrLen + 2;
-            char *response = new char[responseLen]{0};
-            response[0] = version;
-            response[1] = 0x00;
-            response[2] = 0x00;
-            response[3] = atyp;
+            int headerLen = oriLength - inBuffer->length();
+
+            RingBuffer response{headerLen};
+            response.write1(version);
+            response.write1(0x00);
+            response.write1(0x00);
+            response.write1(atyp);
+            //域名和IPV6目前不支持，设置REP为0x08
             if (atyp == 0x03) {
-                response[4] = addrLen;
+                response.write1(addrLen);
+                response.set(1, 0x08);
+            } else if (atyp == 0x04) {
+                response.set(1, 0x08);
             }
-            in_addr_t addr_t = inet_addr(addr.c_str());
             if (cmd == 0x01) {
-                memcpy(response + 4 + addrOffset, &addr_t, addrLen);
-                memcpy(response + 4 + addrOffset + addrLen, &port, sizeof(int16_t));
+                response.write(addrBuffer, addrLen);
+                response.write2(port);
                 //创建远程连接
                 if (!attachOutboundContext()) {
                     LOGE("connect to remote failed!");
@@ -249,32 +243,60 @@ namespace R {
                     handleClosed(outbound);
                 }
             }
+                //BIND
+            else if (cmd == 0x02) {
+                sockaddr_in bindAddrIn{0};
+                mBindServerSocket = createBindServerSocket(&bindAddrIn);
+                if (mBindServerSocket) {
+                    mBindFakeTunnelContext = createEmptyTunnelContext(mBindServerSocket,
+                                                                      bindAddrIn);
+                    if (!mLooper->registerOnReadOnly(mBindServerSocket, mBindFakeTunnelContext)) {
+                        LOGE("unable to register read event,fd=%d", mBindServerSocket);
+                        handleClosed(mBindFakeTunnelContext);
+                    }
+                    //todo ipv6 domain
+                    response.write4(bindAddrIn.sin_addr.s_addr);
+                    response.write2(bindAddrIn.sin_port);
+                } else {
+                    response.set(1, 0x01);
+                    response.write(addrBuffer, addrLen);
+                    response.write2(port);
+                }
+            }
                 //UDP ASSOCIATE
             else if (cmd == 0x03) {
-                sockaddr_in sockaddrIn{0};
-                sockaddrIn.sin_port = htons(mConfig.udpServerPort);
-                sockaddrIn.sin_family = AF_INET;
-                sockaddrIn.sin_addr.s_addr = inet_addr(mConfig.udpServerAddr.c_str());
-
-                memcpy(response + 4 + addrOffset, &sockaddrIn.sin_addr,
-                       sizeof(sockaddrIn.sin_addr));
-                memcpy(response + 4 + addrOffset + sizeof(sockaddrIn.sin_addr),
-                       &sockaddrIn.sin_port, sizeof(sockaddrIn.sin_port));
-
-                LOGI("handle udp associate to %s:%d", addr.c_str(), port);
-                createUdpAssociateTunnel();
+                sockaddr_in udpServerAddrIn{0};
+                mUdpServerSocketFd = createUdpServerSocket(nullptr, &udpServerAddrIn);
+                if (mUdpServerSocketFd) {
+                    mUdpFakeTunnelContext = createEmptyTunnelContext(mUdpServerSocketFd,
+                                                                     udpServerAddrIn);
+                    if (!mLooper->registerOnReadOnly(mUdpServerSocketFd, mUdpFakeTunnelContext)) {
+                        LOGE("unable to register read event,fd=%d", mUdpServerSocketFd);
+                        handleClosed(mUdpFakeTunnelContext);
+                    }
+                    //todo ipv6 domain
+                    response.write4(udpServerAddrIn.sin_addr.s_addr);
+                    response.write2(udpServerAddrIn.sin_port);
+                } else {
+                    response.set(1, 0x01);
+                    response.write(addrBuffer, addrLen);
+                    response.write2(port);
+                }
+                LOGI("handle udp associate to %s:%d", inet_ntoa(*(in_addr *) addrBuffer),ntohs(port));
+            } else {
+                response.set(1, 0x07);
+                response.write(addrBuffer, addrLen);
+                response.write2(port);
             }
-            std::string responseStr = Util::toHexString(response, responseLen);
-            LOGI("step3 response=%s", responseStr.c_str());
-            LOGI("client inboundHandleHandshake step3 fd=%d", fd);
-            outBuffer->write(response, responseLen);
-            delete[] response;
-
+            LOGI("step3 response=%s", response.toString().c_str());
+            response.writeTo(outBuffer);
+            LOGI("client handleInboundHandshake step3 fd=%d", fd);
             return;
         }
     }
 
-    void Socks5Tunnel::outboundHandleHandshake() {
+
+    void Socks5Tunnel::handleOutboundHandshake() {
 
     }
 
@@ -290,8 +312,251 @@ namespace R {
         writeBuffer->readFrom(readBuffer);
     }
 
-    void Socks5Tunnel::createUdpAssociateTunnel() {
+    int Socks5Tunnel::createBindServerSocket(sockaddr_in *out) {
+        int ret;
+        int fd;
+        int opt = 1;
+        sockaddr_in addr_in{0};
 
+        socklen_t len= sizeof(*out);
+        fd = socket(AF_INET, SOCK_STREAM, 0);
+        if (fd == -1) {
+            LOGE("unable to create socket,%d:%s", errno, strerror(errno));
+            goto create_fail;
+        }
+        ret = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+        if (ret == -1) {
+            LOGE("failed to reuse addr on tcp fd=%d,errno=%d:%s", fd, errno,
+                 strerror(errno));
+            close(fd);
+            return 0;
+        }
+        ret = setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
+        if (ret == -1) {
+            LOGE("failed to reuse port on tcp fd=%d,errno=%d:%s", fd, errno,
+                 strerror(errno));
+            close(fd);
+            return 0;
+        }
+        Util::setNonBlocking(fd);
+        addr_in.sin_addr.s_addr = inet_addr(mConfig.serverAddr.c_str());
+        addr_in.sin_family = AF_INET;
+        addr_in.sin_port = 0;
+        ret = bind(fd, (sockaddr *) &addr_in, sizeof(addr_in));
+        if (ret) {
+            LOGE("unable to bind socket,%d:%s", errno, strerror(errno));
+            goto created;
+        }
+
+        if (getsockname(fd, (sockaddr *) out, &len) == -1) {
+            LOGE("unable to get socket,%d:%s", errno, strerror(errno));
+            goto created;
+        }
+
+        ret = listen(fd, 1024);
+        if (ret) {
+            LOGE("unable to listen socket at %s:%d,%d:%s", inet_ntoa(addr_in.sin_addr),
+                 addr_in.sin_port, errno, strerror(errno));
+            goto created;
+        }
+        LOGI("create socks server socket successfully!");
+        return fd;
+
+        created:
+        close(fd);
+        return 0;
+
+        create_fail:
+        return 0;
+    }
+
+    TunnelContext *Socks5Tunnel::createEmptyTunnelContext(int fd, sockaddr_in sockaddrIn) {
+        return new TunnelContext{
+                fd,
+                sockaddrIn,
+                0,
+                TunnelStage::STAGE_TRANSFER,
+                this
+        };
+    }
+
+    void Socks5Tunnel::handleRead(TunnelContext *context) {
+        //处理BIND请求,建立本地和BIND Server的数据通道
+        if (context == mBindFakeTunnelContext) {
+            //accept远端服务器作为outbound
+            handleBindServerSocketRead();
+        } else if (context == mUdpFakeTunnelContext) {
+            handleUdpServerSocketRead();
+        }
+            //处理数据转发
+        else {
+            TCPTunnel::handleRead(context);
+        }
+    }
+
+    int Socks5Tunnel::createUdpServerSocket(sockaddr_in *in, sockaddr_in *out) const {
+
+        int fd = socket(AF_INET, SOCK_DGRAM, 0);
+        if (fd == -1) {
+            LOGE("failed to create udp server socket,errno=%d:%s", errno, strerror(errno));
+            return 0;
+        }
+        int opt = 1, ret;
+        ret = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+        if (ret == -1) {
+            LOGE("failed to reuse addr on udp fd=%d,errno=%d:%s", fd, errno,
+                 strerror(errno));
+            close(fd);
+            return 0;
+        }
+        ret = setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
+        if (ret == -1) {
+            LOGE("failed to reuse port on udp fd=%d,errno=%d:%s", fd, errno,
+                 strerror(errno));
+            close(fd);
+            return 0;
+        }
+        if (in) {
+            if (bind(fd, (sockaddr *) in, sizeof(*in)) == -1) {
+                close(fd);
+                LOGE("failed to bind udp server socket,errno=%d:%s", errno, strerror(errno));
+                return 0;
+            }
+        } else {
+            sockaddr_in addrIn{0};
+            addrIn.sin_family = AF_INET;
+            addrIn.sin_addr.s_addr = inet_addr(mConfig.serverAddr.c_str());
+            addrIn.sin_port = 0;
+            if (bind(fd, (sockaddr *) &addrIn, sizeof(addrIn)) == -1) {
+                close(fd);
+                LOGE("failed to bind udp server socket,errno=%d:%s", errno, strerror(errno));
+                return 0;
+            }
+        }
+
+        if (out) {
+            socklen_t len= sizeof(*out);
+            if (getsockname(fd, (sockaddr *) out, &len) == -1) {
+                LOGE("unable to get socket,%d:%s", errno, strerror(errno));
+                close(fd);
+                return 0;
+            }
+        }
+        Util::setNonBlocking(fd);
+        LOGI("create udp server successfully!!!");
+        return fd;
+    }
+
+    void Socks5Tunnel::handleUdpServerSocketRead() {
+
+        sockaddr_in sockaddrIn{0};
+        socklen_t sockaddrLen = sizeof(sockaddrIn);
+        char tmp[mConfig.mtu];
+        //得到UDP客户端地址和端口
+        int r = recvfrom(mUdpServerSocketFd, tmp, mConfig.mtu, 0,
+                         (sockaddr *) &sockaddrIn, &sockaddrLen);
+        LOGE("udp data=%s", Util::toHexString(tmp, r).c_str());
+        LOGI("prepare to construct udp tunnel for %s:%d", inet_ntoa(sockaddrIn.sin_addr),
+             ntohs(sockaddrIn.sin_port));
+
+        int tunnelFd = createUdpServerSocket(&mUdpFakeTunnelContext->sockAddr, nullptr);
+        if (!tunnelFd) {
+            return;
+        }
+        sockaddrIn.sin_family = AF_INET;
+        auto udpTunnel = Socks5UdpTunnel::create(mConfig.mtu,
+                                                 mLooper,
+                                                 mConfig,
+                                                 sockaddrIn);
+        auto inbound = new TunnelContext{
+                tunnelFd,
+                sockaddrIn,
+                mConfig.mtu,
+                TunnelStage::STAGE_TRANSFER,
+                udpTunnel
+        };
+        udpTunnel->inbound = inbound;
+        udpTunnel->initialize(tmp, r);
+        //注册事件
+        if (!mLooper->registerOnReadOnly(inbound->fd, inbound)) {
+            LOGE("unable to register read event,fd=%d", inbound->fd);
+            close(tunnelFd);
+            delete udpTunnel;
+            return;
+        }
+        udpTunnel->registerTunnelEvent();
+        if (connect(tunnelFd, (sockaddr *) &sockaddrIn, sockaddrLen) == -1) {
+            LOGE("failed to connect client udp, errno=%d:%s", errno, strerror(errno));
+            return;
+        }
+        if (!mUdpTunnels) {
+            mUdpTunnels = new std::vector<Tunnel *>();
+        }
+        mUdpTunnels->push_back(udpTunnel);
+        LOGI("register read event,fd=%d", inbound->fd);
+    }
+
+    void Socks5Tunnel::handleUdpClosed() {
+        if (mUdpServerSocketFd) {
+            LOGE("close server fd=%d", mUdpServerSocketFd);
+            mLooper->unregister(mUdpServerSocketFd);
+            close(mUdpServerSocketFd);
+            mUdpServerSocketFd = 0;
+        }
+        if (mUdpFakeTunnelContext) {
+            delete mUdpFakeTunnelContext;
+            mUdpFakeTunnelContext = nullptr;
+        }
+        if (mUdpTunnels) {
+            for (const auto &item: *mUdpTunnels) {
+                item->handleClosed(nullptr);
+            }
+            mUdpTunnels->clear();
+            mUdpTunnels = nullptr;
+        }
+    }
+
+    void Socks5Tunnel::handleBindClosed() {
+        if (mBindServerSocket) {
+            LOGE("close server fd=%d", mBindServerSocket);
+            mLooper->unregister(mBindServerSocket);
+            close(mBindServerSocket);
+            mBindServerSocket = 0;
+        }
+        if (mBindFakeTunnelContext) {
+            delete mBindFakeTunnelContext;
+            mBindFakeTunnelContext = nullptr;
+        }
+    }
+
+    void Socks5Tunnel::handleBindServerSocketRead() {
+        int fd = mBindServerSocket;
+        sockaddr_in acceptAddr{0};
+        socklen_t len = sizeof(acceptAddr);
+        int acceptFd = accept(fd, (sockaddr *) &acceptAddr, &len);
+        if (acceptFd < 0) {
+            LOGE("failed to accept bind server,errno=%d:%s", errno, strerror(errno));
+            return;
+        }
+        LOGI("accept bind server fd=%d,outbound addr=%s, outbound port=%d",
+             acceptFd,
+             inet_ntoa(acceptAddr.sin_addr),
+             ntohs(acceptAddr.sin_port));
+        outbound = new TunnelContext{
+                fd,
+                acceptAddr,
+                mBufferLen,
+                TunnelStage::STAGE_TRANSFER,
+                this
+        };
+        registerTunnelEvent();
+    }
+
+    void Socks5Tunnel::handleClosed(TunnelContext *context) {
+        //BIND和UDP ASSOCIATE生命周期处理
+        handleBindClosed();
+        handleUdpClosed();
+        TCPTunnel::handleClosed(context);
     }
 
 } // R

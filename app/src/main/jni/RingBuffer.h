@@ -6,6 +6,7 @@
 #define R_RINGBUFFER_H
 
 #include <unistd.h>
+#include <string>
 
 namespace R {
 
@@ -93,7 +94,31 @@ namespace R {
         /**
          * 读1字节
          */
-        uint8_t get1(int i);
+        uint8_t get(int i);
+
+        void set(int i,uint8_t value);
+
+        /**
+         * 读1字节
+         */
+        int write1(uint8_t data);
+
+        /**
+         * 读2字节
+         */
+        int write2(uint16_t data);
+
+        /**
+         * 读4字节
+         */
+        int write4(uint32_t data);
+
+        /**
+        * 读8字节
+        */
+        int write8(uint64_t data);
+
+        std::string toString();
 
     };
 

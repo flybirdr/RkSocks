@@ -38,9 +38,9 @@ namespace R {
 
         ~Socks5UdpTunnel() override;
 
-        void inboundHandleHandshake() override;
+        void handleInboundHandshake() override;
 
-        void outboundHandleHandshake() override;
+        void handleOutboundHandshake() override;
 
         void packData() override;
 

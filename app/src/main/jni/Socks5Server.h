@@ -15,7 +15,6 @@ namespace R {
     private:
         Socks5Config mConfig;
         int mServerSocketFd;
-        int mUdpServerSocketFd;
         std::shared_ptr<EventLoop> mLooper;
 
 //        std::list<Tunnel *> mTunnels;
@@ -33,12 +32,6 @@ namespace R {
         void handleServerSocketRead();
 
         void handleServerSocketClosed();
-
-        int createUdpServerSocket(bool forTunnel) const;
-
-        void handleUdpServerSocketRead();
-
-        void handleUdpServerSocketClosed();
 
         void handleTunnelClosed(Tunnel *tunnel);
 

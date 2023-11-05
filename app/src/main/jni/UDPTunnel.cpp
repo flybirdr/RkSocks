@@ -86,7 +86,6 @@ namespace R {
             LOGE("attempt to write closed fd!");
             return;
         }
-        auto tunnel = context->tunnel;
         auto buffer = context->outBuffer;
         auto addr = std::string{inet_ntoa(context->sockAddr.sin_addr)};
         auto port = ntohs(context->sockAddr.sin_port);
@@ -99,16 +98,16 @@ namespace R {
                 std::to_string(fd) +
                 ", ";
         //握手没完成之前只和本机交互
-        if (context == context->tunnel->inbound &&
+        if (context == inbound &&
             context->tunnelStage < TunnelStage::STAGE_TRANSFER) {
-            inboundHandleHandshake();
+            handleInboundHandshake();
         } else if (context->tunnelStage == TunnelStage::STAGE_TRANSFER) {
             //出站数据需要协议打包
-            if (context == tunnel->outbound) {
+            if (context == outbound) {
                 packData();
             }
                 //入站数据需要协议解包
-            else if (context->tunnel->inbound) {
+            else if (context == inbound) {
                 unpackData();
             }
         }
@@ -148,20 +147,19 @@ namespace R {
 
     void UDPTunnel::handleClosed(TunnelContext *context) {
 
-        auto tunnel = context->tunnel;
         std::ostringstream os;
         os << "UDP ";
         os << "close tunnel ";
-        if (tunnel->inbound) {
-            os << "inbound=" << tunnel->inbound->fd;
-            if (!mLooper->unregister(tunnel->inbound->fd)) {
+        if (inbound) {
+            os << "inbound=" << inbound->fd;
+            if (!mLooper->unregister(inbound->fd)) {
                 LOGE("unable to unregister event!");
             }
         }
         os << ", ";
-        if (tunnel->outbound) {
-            os << "outbound=" << tunnel->outbound->fd;
-            if (!mLooper->unregister(tunnel->outbound->fd)) {
+        if (outbound) {
+            os << "outbound=" << outbound->fd;
+            if (!mLooper->unregister(outbound->fd)) {
                 LOGE("unable to unregister event!");
             }
         }
@@ -171,18 +169,18 @@ namespace R {
 //                std::unique_lock<std::mutex> lock(mTunnelLock);
 //                mTunnels.remove(tunnel);
 //            }
-        if (tunnel->inbound) {
-            close(tunnel->inbound->fd);
-            tunnel->inbound->fd = 0;
-            delete tunnel->inbound;
-            tunnel->inbound = nullptr;
+        if (inbound) {
+            close(inbound->fd);
+            inbound->fd = 0;
+            delete inbound;
+            inbound = nullptr;
         }
-        if (tunnel->outbound) {
-            if (tunnel->outbound->fd) {
-                close(tunnel->outbound->fd);
-                tunnel->outbound->fd = 0;
-                delete tunnel->outbound;
-                tunnel->outbound = nullptr;
+        if (outbound) {
+            if (outbound->fd) {
+                close(outbound->fd);
+                outbound->fd = 0;
+                delete outbound;
+                outbound = nullptr;
             }
         }
     }

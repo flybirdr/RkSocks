@@ -113,7 +113,7 @@ namespace R {
          *
          * @param tunnel
          */
-        virtual void inboundHandleHandshake() {};
+        virtual void handleInboundHandshake() {};
 
         /**
          * 出处理握手
@@ -122,7 +122,7 @@ namespace R {
          *
          * @param tunnel
          */
-        virtual void outboundHandleHandshake() {};
+        virtual void handleOutboundHandshake() {};
 
         /**
          * inbound->outbound 加密数据
