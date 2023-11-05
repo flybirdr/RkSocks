@@ -193,7 +193,8 @@ class RService : VpnService() {
             val fos = FileOutputStream(tproxy_file, false)
             val yml = mapOf(
                 "misc" to mapOf<String, Any>(
-                    "task-stack-size" to 20480
+                    "task-stack-size" to 20480,
+                    "limit-nofile" to 65535
                 ),
                 "tunnel" to mapOf<String, Any>(
                     "mtu" to config.mtu
@@ -227,15 +228,15 @@ class RService : VpnService() {
 
 //        thread {
 //            val packetLen = mConfig?.mtu ?: return@thread
-//            val readBuffer = ByteArray(packetLen)
+//            val readFrom = ByteArray(packetLen)
 //            val input = FileInputStream(parcelFileDescriptor.fileDescriptor)
 //            while (true) {
-//                val read = input.read(readBuffer, 0, readBuffer.size)
+//                val read = input.read(readBuffer, 0, readFrom.size)
 //
 //                if (read == 0) {
 //                    continue
 //                }
-//                Logger.log("Test", Util.bytes2HexString(readBuffer, read))
+//                Logger.log("Test", Util.bytes2HexString(readFrom, read))
 //            }
 //        }
     }

@@ -92,7 +92,7 @@ namespace R {
         return c < 0 ? c : b;
     }
 
-    int RingBuffer::writeInto(RingBuffer *dstBuffer) {
+    int RingBuffer::writeTo(RingBuffer *dstBuffer) {
         if (dstBuffer == nullptr) {
             return 0;
         }
@@ -114,10 +114,14 @@ namespace R {
     }
 
     int RingBuffer::readFrom(RingBuffer *buffer) {
+        return readFrom(buffer, buffer->length());
+    }
+
+    int RingBuffer::readFrom(RingBuffer *buffer, int size) {
         if (buffer == nullptr) {
             return 0;
         }
-        int readSize = std::min(buffer->length(), mAvailable);
+        int readSize = std::min(size, std::min(buffer->length(), mAvailable));
         if (readSize == 0) {
             return 0;
         }
@@ -136,6 +140,23 @@ namespace R {
 
     bool RingBuffer::notEmpty() const {
         return length();
+    }
+
+    void RingBuffer::unread(int n) {
+        if (length() == 0 || available() == 0) {
+            return;
+        }
+        int max = std::min(available(), n);
+        mHead -= max;
+        mAvailable -= max;
+    }
+
+    uint8_t RingBuffer::get1(int i) {
+        if (length() <= i) {
+            return -1;
+        }
+        return mBuffer[mHead + i];
+
     }
 
 }  // namespace R

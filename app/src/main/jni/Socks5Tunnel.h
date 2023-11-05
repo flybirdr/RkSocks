@@ -7,6 +7,7 @@
 
 #include "Tunnel.h"
 #include "Socks5Config.h"
+#include "TCPTunnel.h"
 
 namespace R {
 
@@ -33,14 +34,15 @@ namespace R {
         //远程地址,因为可能是IP地址也可能是域名，所有用字符串来承载
         std::string remoteAddr;
         //远程端口
-        int remotePort;
+        uint16_t remotePort;
     };
 
-    class Socks5Tunnel : public Tunnel {
+    class Socks5Tunnel : public TCPTunnel {
 
     private:
         Socks5Config mConfig;
         std::unique_ptr<Socks5Info> mSocksInfo;
+
     public:
         Socks5Tunnel() = delete;
 
@@ -58,6 +60,8 @@ namespace R {
         void packData() override;
 
         void unpackData() override;
+
+        void createUdpAssociateTunnel();
     };
 
 } // R

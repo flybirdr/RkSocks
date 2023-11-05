@@ -26,13 +26,15 @@ namespace R {
          * 将本buffer写入dst
          * @return 实际写入的字节数
          */
-        int writeInto(RingBuffer *dstBuffer);
+        int writeTo(RingBuffer *dstBuffer);
 
         /**
          * 从srcBuffer中拷贝内容
          * @return 实际拷贝的字节数
          */
         int readFrom(RingBuffer *buffer);
+
+        int readFrom(RingBuffer *buffer, int size);
 
         int write(const char *buffer, int length);
 
@@ -82,6 +84,16 @@ namespace R {
          * 非空
          */
         bool notEmpty() const;
+
+        /**
+         * 回滚
+         */
+        void unread(int n);
+
+        /**
+         * 读1字节
+         */
+        uint8_t get1(int i);
 
     };
 

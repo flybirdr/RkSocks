@@ -174,7 +174,7 @@ namespace R {
         event.events = EPOLLIN | EPOLLET;
         int ret = epoll_ctl(mEpollFd, EPOLL_CTL_MOD, fd, &event) != -1;
         if (!ret) {
-            LOGE("Unable to mod fd=%d read event!", fd);
+            LOGE("Unable to mod fd=%d read event,errno=%d:%s", fd,errno, strerror(errno));
         }
         return ret;
     }
@@ -206,7 +206,7 @@ namespace R {
         event.events = EPOLLET;
         int ret = epoll_ctl(mEpollFd, EPOLL_CTL_MOD, fd, &event) != -1;
         if (!ret) {
-            LOGE("Unable to mod fd=%d none!", fd);
+            LOGE("Unable to mod fd=%d none,errno=%d:%s", fd,errno, strerror(errno));
         }
         return ret;
     }
@@ -222,7 +222,7 @@ namespace R {
         event.events = EPOLLIN | EPOLLOUT | EPOLLET;
         int ret = epoll_ctl(mEpollFd, EPOLL_CTL_MOD, fd, &event) != -1;
         if (!ret) {
-            LOGE("Unable to mod fd=%d none!", fd);
+            LOGE("Unable to mod fd=%d read/write!", fd);
         }
         return ret;
     }

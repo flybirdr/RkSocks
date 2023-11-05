@@ -23,35 +23,53 @@ namespace R {
     class TunnelContext {
     public:
         int fd;
-        sockaddr_in sockAddrIn;
+        sockaddr_in sockAddr;
         /**
          * 读取缓冲区
          */
-        RingBuffer inBuffer;
+        RingBuffer *inBuffer;
         /**
          * 写入缓冲区
          */
-        RingBuffer outBuffer;
+        RingBuffer *outBuffer;
+        /**
+         * 状态
+         */
         TunnelStage tunnelStage;
+        /**
+         * 持有tunnel引用
+         */
         Tunnel *tunnel;
 
-        explicit TunnelContext(int fd,
-                               sockaddr_in sockaddrIn,
-                               int capacity,
-                               TunnelStage tunnelStage,
-                               Tunnel* tunnel) :
+        TunnelContext(int fd,
+                      sockaddr_in sockaddrIn,
+                      int capacity,
+                      TunnelStage tunnelStage,
+                      Tunnel *tunnel) :
                 fd(fd),
-                sockAddrIn(sockaddrIn),
-                inBuffer(capacity),
-                outBuffer(capacity),
+                sockAddr(sockaddrIn),
+                inBuffer(new RingBuffer(capacity)),
+                outBuffer(new RingBuffer(capacity)),
                 tunnelStage(tunnelStage),
                 tunnel(tunnel) {
 
         }
+
+        virtual ~TunnelContext() {
+            if (inBuffer) {
+                delete inBuffer;
+                inBuffer = 0;
+            }
+            if (outBuffer) {
+                delete outBuffer;
+                outBuffer = 0;
+            }
+        }
     };
 
-    class Tunnel  {
+    class Tunnel {
     private:
+        friend class Socks5Server;
 
     protected:
         char *mBuffer;
@@ -120,16 +138,16 @@ namespace R {
          */
         virtual void unpackData() = 0;
 
-        void handleRead(TunnelContext *context);
+        virtual void handleRead(TunnelContext *context) = 0;
 
-        void handleWrite(TunnelContext *context);
+        virtual void handleWrite(TunnelContext *context) = 0;
 
-        void handleClosed(TunnelContext *context);
+        virtual void handleClosed(TunnelContext *context) = 0;
 
         /**
          * 监听此通道的读写事件
          */
-        void registerTunnelEvent();
+        virtual void registerTunnelEvent();
     };
 
 } // R

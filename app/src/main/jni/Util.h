@@ -14,6 +14,9 @@ class Util {
 public:
     static void setNonBlocking(int fd) {
         int flags = fcntl(fd, F_GETFL, 0);
+        if (flags & O_NONBLOCK) {
+            return;
+        }
         fcntl(fd, F_SETFL, flags | O_NONBLOCK);
     }
 

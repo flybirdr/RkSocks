@@ -186,9 +186,9 @@ hev_config_parse_socks5(yaml_document_t *doc, yaml_node_t *base) {
         return -1;
     }
 
-    gSocks5Config.serverAddr = std::string(addr);
+    gSocks5Config.udpServerAddr = gSocks5Config.serverAddr = std::string(addr);
     gSocks5Config.serverPort = strtoul(port, NULL, 10);
-
+    gSocks5Config.udpServerPort = gSocks5Config.serverPort + 1;
     if (user && pass) {
         strncpy(_user, user, 256 - 1);
         strncpy(_pass, pass, 256 - 1);
@@ -274,7 +274,7 @@ Java_com_rookie_r_RService_nativeStart(JNIEnv *env, jobject thiz,
     tdata->fd = fd;
     bytes = (const jbyte *) env->GetStringUTFChars(config_path, NULL);
     tdata->path = strdup((const char *) bytes);
-    env->ReleaseStringUTFChars(config_path,(const char *) bytes);
+    env->ReleaseStringUTFChars(config_path, (const char *) bytes);
     pthread_create(&work_thread, NULL, thread_handler, tdata);
 }
 extern "C"

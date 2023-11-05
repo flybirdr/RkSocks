@@ -59,7 +59,8 @@ class MainActivity : AppCompatActivity() {
         val appPackages = listOf(
             "com.android.browser",
             "com.android.chrome",
-            "com.google.android.youtube"
+            "com.google.android.youtube",
+            "com.rookie.networkclient"
         )
         RService.startService(
             this, VpnConfig(
@@ -67,7 +68,7 @@ class MainActivity : AppCompatActivity() {
                 9000,
                 ipAddress,
                 mapOf("0.0.0.0" to 0),
-                null,
+                listOf("223.5.5.5"),
                 null,
                 appPackages
             )
