@@ -1,13 +1,17 @@
 package com.rookie.r
 
-import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.net.VpnService
 import android.os.Build
 import android.os.ParcelFileDescriptor
+import androidx.core.app.NotificationCompat
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.yaml.snakeyaml.DumperOptions
@@ -17,7 +21,7 @@ import java.io.FileOutputStream
 import java.io.IOException
 
 
-class RService : VpnService() {
+class TunService : VpnService() {
 
     companion object {
 
@@ -33,68 +37,62 @@ class RService : VpnService() {
         const val CMD_OFF = "off"
 
 
-        fun startService(context: Context, config: VpnConfig) {
-
-            val intent = Intent(context, RService::class.java).apply {
-
+        fun startService(context: Context, config: VpnConfig): Intent {
+            val intent = Intent(context, TunService::class.java).apply {
                 Logger.log(TAG, "before serialization: $config")
                 val configJson = Json.encodeToString(config)
                 Logger.log(TAG, "after serialization: $configJson")
-
                 putExtra(CONFIG, configJson)
                 putExtra(COMMAND, CMD_ON)
-
             }
-
-            context.startService(intent)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+            return intent;
         }
 
         fun stopService(context: Context) {
-            val intent = Intent(context, RService::class.java).apply {
-                putExtra(COMMAND, CMD_OFF)
-            }
-
-            context.stopService(intent)
+            LocalBroadcastManager.getInstance(context).sendBroadcast(Intent(Constant.ACTION_CLOSE))
         }
     }
 
     var mConfig: VpnConfig? = null
-
     var mParcelFileDescriptor: ParcelFileDescriptor? = null
 
     override fun onCreate() {
         super.onCreate()
-        Logger.log(TAG, "VpnService created!")
+        LocalBroadcastManager.getInstance(this).registerReceiver(object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action == Constant.ACTION_CLOSE) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                        stopForeground(STOP_FOREGROUND_REMOVE)
+                    } else {
+                        stopForeground(true)
+                    }
+                    mParcelFileDescriptor?.close()
+                    stopSelf()
+                }
+            }
 
+        }, IntentFilter().apply {
+            addAction(Constant.ACTION_CLOSE)
+        })
+        updateForegroundMessage("正在运行...")
+        Logger.log(TAG, "VpnService created!")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-
         //新建立vpn
         if (mParcelFileDescriptor == null) {
             //获取配置
             mConfig = intent?.getStringExtra(CONFIG)?.let { Json.decodeFromString(it) }
             Logger.log(TAG, "got config: $mConfig")
-
             updateForegroundMessage("configuring...")
-
             initTunAndServers()
-
         }
-        //重新打开vpn
-        else {
-            //判断参数是否变化
-            val config: VpnConfig? = intent?.getStringExtra(CONFIG)?.let { Json.decodeFromString(it) }
-
-            config?.let {
-                if (it != mConfig) {
-                    mConfig = it
-                    reConfigureTun(it)
-                }
-            }
-        }
-
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
     override fun onDestroy() {
@@ -153,7 +151,7 @@ class RService : VpnService() {
             }
 
         Logger.log(
-            RService.TAG, """
+            TunService.TAG, """
             configured vpn:
             
             $config
@@ -163,30 +161,42 @@ class RService : VpnService() {
 
     }
 
-    fun reConfigureTun(config: VpnConfig) {
-
-    }
-
     fun updateForegroundMessage(message: String) {
-
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
-            nm.createNotificationChannel(NotificationChannel(NOTIFICATION_ID, NOTIFICATION_NAME, NotificationManager.IMPORTANCE_DEFAULT))
-            startForeground(
-                1, Notification.Builder(this, NOTIFICATION_ID)
-                    .setSmallIcon(R.mipmap.ic_launcher)
-                    .setContentText("正在运行: $message")
-                    .build()
-            )
+            nm.createNotificationChannel(NotificationChannel(NOTIFICATION_ID, NOTIFICATION_NAME, NotificationManager.IMPORTANCE_DEFAULT).apply {
+                description = NOTIFICATION_NAME
+                enableLights(true)
+                enableVibration(false)
+                lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
+            })
         }
+        val builder: NotificationCompat.Builder = NotificationCompat.Builder(this, NOTIFICATION_ID)
+        //通知小图标
+        //通知小图标
+//        builder.setSmallIcon(R.mipmap.ic_launcher)
+        //通知标题
+        //通知标题
+        builder.setContentTitle(NOTIFICATION_NAME)
+        //通知内容
+        //通知内容
+        builder.setContentText("正在运行: $message")
+        //设定通知显示的时间
+        //设定通知显示的时间
+        builder.setWhen(System.currentTimeMillis())
+        //设定启动的内容
+        //设定启动的内容
+        val activityIntent = Intent(this, MainActivity::class.java)
+        val pendingIntent = PendingIntent.getActivity(this, 1, activityIntent, PendingIntent.FLAG_UPDATE_CURRENT)
+        builder.setContentIntent(pendingIntent)
+        val notification = builder.build()
 
+        startForeground(1, notification)
     }
 
     fun onEstablish(parcelFileDescriptor: ParcelFileDescriptor) {
         val config = mConfig ?: return
-        setCurrentService(this)
+        setService(this)
         val tproxy_file = File(cacheDir, "tproxy.conf")
         try {
             tproxy_file.createNewFile()
@@ -225,23 +235,9 @@ class RService : VpnService() {
             return
         }
         nativeStart(parcelFileDescriptor.fd, tproxy_file.absolutePath)
-
-//        thread {
-//            val packetLen = mConfig?.mtu ?: return@thread
-//            val readFrom = ByteArray(packetLen)
-//            val input = FileInputStream(parcelFileDescriptor.fileDescriptor)
-//            while (true) {
-//                val read = input.read(readBuffer, 0, readFrom.size)
-//
-//                if (read == 0) {
-//                    continue
-//                }
-//                Logger.log("Test", Util.bytes2HexString(readFrom, read))
-//            }
-//        }
     }
 
-    external fun setCurrentService(vpnService: VpnService)
+    external fun setService(vpnService: VpnService)
 
     external fun nativeStart(fd: Int, configPath: String)
 

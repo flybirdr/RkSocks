@@ -8,6 +8,7 @@
 #include <memory>
 #include <mutex>
 #include <sys/epoll.h>
+#include <thread>
 
 namespace R {
     class EventListener {
@@ -28,10 +29,11 @@ namespace R {
         volatile int mEpollFd;
         volatile bool mLooping;
         std::recursive_mutex mLock;
+        std::thread mThread;
 
         void destroyLopper();
 
-        void setLoop(bool looping);
+        bool setLoop(bool looping);
 
         static void threadLoop(EventLoop *self);
 
@@ -56,21 +58,21 @@ namespace R {
 
         void quit();
 
-        bool registerOnReadOnly(int fd, void *ptr);
+        bool registerOnReadOnly(int fd, void *ptr) const;
 
-        bool registerOnWriteOnly(int fd, void *ptr);
+        bool registerOnWriteOnly(int fd, void *ptr) const;
 
-        bool registerOnReadWrite(int fd, void *ptr);
+        bool registerOnReadWrite(int fd, void *ptr) const;
 
-        bool modOnRead(int fd, void *ptr);
+        bool modOnRead(int fd, void *ptr) const;
 
-        bool modOnWrite(int fd, void *ptr);
+        bool modOnWrite(int fd, void *ptr) const;
 
-        bool modNone(int fd, void *ptr);
+        bool modNone(int fd, void *ptr) const;
 
-        bool modOnReadWrite(int fd, void *ptr);
+        bool modOnReadWrite(int fd, void *ptr) const;
 
-        bool unregister(int fd);
+        bool unregister(int fd) const;
 
     };
 

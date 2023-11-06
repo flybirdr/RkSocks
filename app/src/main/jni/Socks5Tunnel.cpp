@@ -498,7 +498,7 @@ namespace R {
 
     void Socks5Tunnel::handleUdpClosed() {
         if (mUdpServerSocketFd) {
-            LOGE("close server fd=%d", mUdpServerSocketFd);
+            LOGE("close udp server fd=%d", mUdpServerSocketFd);
             mLooper->unregister(mUdpServerSocketFd);
             close(mUdpServerSocketFd);
             mUdpServerSocketFd = 0;
@@ -518,7 +518,7 @@ namespace R {
 
     void Socks5Tunnel::handleBindClosed() {
         if (mBindServerSocket) {
-            LOGE("close server fd=%d", mBindServerSocket);
+            LOGE("close bind server fd=%d", mBindServerSocket);
             mLooper->unregister(mBindServerSocket);
             close(mBindServerSocket);
             mBindServerSocket = 0;

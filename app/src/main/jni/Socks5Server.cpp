@@ -113,11 +113,6 @@ namespace R {
                 tunnel
         };
         tunnel->inbound = inbound;
-
-//        {
-//            std::unique_lock<std::mutex> lock(mTunnelLock);
-//            mTunnels.push_back(tunnel);
-//        }
         if (!mLooper->registerOnReadOnly(inbound->fd, inbound)) {
             LOGE("unable to register read event,fd=%d", acceptFd);
             close(acceptFd);
@@ -172,9 +167,6 @@ namespace R {
     }
 
     void Socks5Server::handleTunnelClosed(Tunnel *tunnel) {
-//        std::unique_lock<std::mutex> lock(mTunnelLock);
-//        mTunnels.remove(tunnel);
-//        delete tunnel;
         delete tunnel;
     }
 } // R

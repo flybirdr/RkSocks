@@ -52,9 +52,9 @@ JNI_OnUnload(JavaVM
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_rookie_r_RService_setCurrentService(JNIEnv
+Java_com_rookie_r_TunService_setService(JNIEnv
                                              *env,
-                                             jobject thiz, jobject
+                                        jobject thiz, jobject
                                              vpn_service) {
     vpnService = env->NewGlobalRef(vpn_service);
 }
@@ -200,8 +200,8 @@ hev_config_parse_socks5(yaml_document_t *doc, yaml_node_t *base) {
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_rookie_r_RService_nativeStart(JNIEnv *env, jobject thiz,
-                                       jint fd, jstring config_path) {
+Java_com_rookie_r_TunService_nativeStart(JNIEnv *env, jobject thiz,
+                                         jint fd, jstring config_path) {
     jboolean isCopy;
     const char *configPath = env->GetStringUTFChars(config_path, &isCopy);
 
@@ -279,15 +279,12 @@ Java_com_rookie_r_RService_nativeStart(JNIEnv *env, jobject thiz,
 }
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_rookie_r_RService_nativeStop(JNIEnv *env, jobject thiz) {
+Java_com_rookie_r_TunService_nativeStop(JNIEnv *env, jobject thiz) {
     if (!work_thread)
         return;
-
     hev_socks5_tunnel_quit();
-
-    pthread_join(work_thread, NULL);
+    pthread_join(work_thread, nullptr);
     work_thread = 0;
-
     if (socksServer) {
         socksServer->quit();
     }

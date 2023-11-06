@@ -156,11 +156,6 @@ namespace R {
             }
         }
         LOGE("%s", os.str().c_str());
-        //todo
-//            {
-//                std::unique_lock<std::mutex> lock(mTunnelLock);
-//                mTunnels.remove(tunnel);
-//            }
         if (inbound) {
             close(inbound->fd);
             inbound->fd = 0;

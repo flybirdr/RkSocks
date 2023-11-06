@@ -12,12 +12,15 @@ extern JavaVM *gJvm;
 class ScopeJNIEnv {
 
 public:
-    ScopeJNIEnv() : env(0) {
-        if (gJvm->GetEnv((void **) &env, JNI_VERSION_1_6) < 0) {
+    ScopeJNIEnv() : env(nullptr), attached(false) {
+        if (gJvm->GetEnv((void **) &env, JNI_VERSION_1_6) == JNI_EDETACHED) {
+            attached = false;
             JavaVMAttachArgs args = {JNI_VERSION_1_6, __FUNCTION__, __null};
             if (gJvm->AttachCurrentThread(&env, &args) < 0) {
-                env = 0;
+                env = nullptr;
             }
+        } else {
+            attached = true;
         }
     }
 
@@ -26,11 +29,14 @@ public:
     }
 
     ~ScopeJNIEnv() {
-
+        if (!attached) {
+            gJvm->DetachCurrentThread();
+        }
     }
 
 private:
     JNIEnv *env;
+    bool attached;
 };
 
 
