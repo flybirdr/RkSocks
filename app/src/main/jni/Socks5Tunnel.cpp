@@ -560,7 +560,12 @@ namespace R {
         response.write4(acceptAddr.sin_addr.s_addr);
         response.write2(acceptAddr.sin_port);
         response.writeTo(outbound->inBuffer);
-
+        //注册事件
+        if (!mLooper->registerOnReadOnly(outbound->fd, outbound)) {
+            LOGE("unable to register read event,fd=%d", outbound->fd);
+            handleClosed(outbound);
+            return;
+        }
         registerTunnelEvent();
     }
 
