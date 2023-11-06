@@ -22,14 +22,20 @@ namespace R {
 
     class TunnelContext {
     public:
+        /**
+         * socket
+         */
         int fd;
+        /**
+         * 此端绑定的主机地址信息
+         */
         sockaddr_in sockAddr;
         /**
-         * 读取缓冲区
+         * 读缓冲区
          */
         Buffer *inBuffer;
         /**
-         * 写入缓冲区
+         * 写缓冲区
          */
         Buffer *outBuffer;
         /**

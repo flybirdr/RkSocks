@@ -15,10 +15,6 @@ public:
     std::string password;
     int mtu;
 
-    std::string udpServerAddr;
-    int udpServerPort;
-
-
     Socks5Config();
     Socks5Config(const std::string &addr,
                  int port,

@@ -53,9 +53,9 @@ JNI_OnUnload(JavaVM
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_rookie_r_TunService_setService(JNIEnv
-                                             *env,
+                                        *env,
                                         jobject thiz, jobject
-                                             vpn_service) {
+                                        vpn_service) {
     vpnService = env->NewGlobalRef(vpn_service);
 }
 
@@ -185,10 +185,8 @@ hev_config_parse_socks5(yaml_document_t *doc, yaml_node_t *base) {
         fprintf(stderr, "Must be set both socks5 username and password!\n");
         return -1;
     }
-
-    gSocks5Config.udpServerAddr = gSocks5Config.serverAddr = std::string(addr);
     gSocks5Config.serverPort = strtoul(port, NULL, 10);
-    gSocks5Config.udpServerPort = gSocks5Config.serverPort + 1;
+
     if (user && pass) {
         strncpy(_user, user, 256 - 1);
         strncpy(_pass, pass, 256 - 1);

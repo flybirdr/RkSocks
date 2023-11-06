@@ -16,10 +16,6 @@ namespace R {
         Socks5Config mConfig;
         int mServerSocketFd;
         std::shared_ptr<EventLoop> mLooper;
-
-//        std::list<Tunnel *> mTunnels;
-//        std::mutex mTunnelLock;
-
     public:
         void run();
 

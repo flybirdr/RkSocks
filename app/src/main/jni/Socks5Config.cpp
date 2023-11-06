@@ -15,9 +15,7 @@ Socks5Config::Socks5Config(const std::string &addr,
         serverPort(port),
         userName(userName),
         password(password),
-        mtu(mtu),
-        udpServerAddr(udpAddr),
-        udpServerPort(udpPort) {
+        mtu(mtu) {
 
 }
 
@@ -26,8 +24,6 @@ Socks5Config::Socks5Config() :
         serverPort(0),
         userName(""),
         password(""),
-        mtu(0),
-        udpServerAddr(""),
-        udpServerPort(0) {
+        mtu(0) {
 
 }
