@@ -20,9 +20,7 @@ public:
                  int port,
                  const std::string &userName,
                  const std::string &password,
-                 int mtu,
-                 const std::string &udpAddr,
-                 int udpPort);
+                 int mtu);
 
 };
 

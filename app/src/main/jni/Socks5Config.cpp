@@ -8,9 +8,7 @@ Socks5Config::Socks5Config(const std::string &addr,
                            int port,
                            const std::string &userName,
                            const std::string &password,
-                           int mtu,
-                           const std::string &udpAddr,
-                           int udpPort) :
+                           int mtu) :
         serverAddr(addr),
         serverPort(port),
         userName(userName),
