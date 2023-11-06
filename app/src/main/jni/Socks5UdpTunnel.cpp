@@ -35,7 +35,7 @@ namespace R {
 
     }
 
-    int Socks5UdpTunnel::parseHeaderAndAddr(RingBuffer *buffer) {
+    int Socks5UdpTunnel::parseHeaderAndAddr(Buffer *buffer) {
         int rsv = buffer->read2();
         int frag = buffer->read1();
         int atyp = buffer->read1();
@@ -62,7 +62,7 @@ namespace R {
         int dataLen = buffer->length();
         buffer->unread(headerLen);
         if (!mHeader) {
-            mHeader = new RingBuffer{headerLen};
+            mHeader = new Buffer{headerLen};
         }
         mRemoteAddr.sin_family = AF_INET;
         mRemoteAddr.sin_port = port;

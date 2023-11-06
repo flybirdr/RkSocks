@@ -217,7 +217,7 @@ namespace R {
 
             int headerLen = oriLength - inBuffer->length();
 
-            RingBuffer response{headerLen};
+            Buffer response{headerLen};
             response.write1(version);
             response.write1(0x00);
             response.write1(0x00);
@@ -282,7 +282,8 @@ namespace R {
                     response.write(addrBuffer, addrLen);
                     response.write2(port);
                 }
-                LOGI("handle udp associate to %s:%d", inet_ntoa(*(in_addr *) addrBuffer),ntohs(port));
+                LOGI("handle udp associate to %s:%d", inet_ntoa(*(in_addr *) addrBuffer),
+                     ntohs(port));
             } else {
                 response.set(1, 0x07);
                 response.write(addrBuffer, addrLen);
@@ -318,7 +319,7 @@ namespace R {
         int opt = 1;
         sockaddr_in addr_in{0};
 
-        socklen_t len= sizeof(*out);
+        socklen_t len = sizeof(*out);
         fd = socket(AF_INET, SOCK_STREAM, 0);
         if (fd == -1) {
             LOGE("unable to create socket,%d:%s", errno, strerror(errno));
@@ -435,7 +436,7 @@ namespace R {
         }
 
         if (out) {
-            socklen_t len= sizeof(*out);
+            socklen_t len = sizeof(*out);
             if (getsockname(fd, (sockaddr *) out, &len) == -1) {
                 LOGE("unable to get socket,%d:%s", errno, strerror(errno));
                 close(fd);
@@ -549,6 +550,17 @@ namespace R {
                 TunnelStage::STAGE_TRANSFER,
                 this
         };
+
+        //BIND response
+        Buffer response(100);
+        response.write1(0x05);
+        response.write1(0x00);
+        response.write1(0x00);
+        response.write1(0x01);
+        response.write4(acceptAddr.sin_addr.s_addr);
+        response.write2(acceptAddr.sin_port);
+        response.writeTo(outbound->inBuffer);
+
         registerTunnelEvent();
     }
 

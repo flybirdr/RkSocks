@@ -6,7 +6,7 @@
 #define R_TUNNEL_H
 
 #include "EventLoop.h"
-#include "RingBuffer.h"
+#include "Buffer.h"
 #include <netinet/in.h>
 
 /**
@@ -27,11 +27,11 @@ namespace R {
         /**
          * 读取缓冲区
          */
-        RingBuffer *inBuffer;
+        Buffer *inBuffer;
         /**
          * 写入缓冲区
          */
-        RingBuffer *outBuffer;
+        Buffer *outBuffer;
         /**
          * 状态
          */
@@ -48,8 +48,8 @@ namespace R {
                       Tunnel *tunnel) :
                 fd(fd),
                 sockAddr(sockaddrIn),
-                inBuffer(new RingBuffer(capacity)),
-                outBuffer(new RingBuffer(capacity)),
+                inBuffer(new Buffer(capacity)),
+                outBuffer(new Buffer(capacity)),
                 tunnelStage(tunnelStage),
                 tunnel(tunnel) {
 

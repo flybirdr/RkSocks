@@ -2,21 +2,21 @@
 // Created by 张开海 on 2023/11/2.
 //
 
-#include "RingBuffer.h"
+#include "Buffer.h"
 
 #include <algorithm>
 #include <memory>
 #include <sstream>
 
 namespace R {
-    RingBuffer::RingBuffer(int capacity)
+    Buffer::Buffer(int capacity)
             : mBuffer(new char[capacity]),
               mCapacity(capacity),
               mAvailable(capacity),
               mHead(capacity / 2),
               mTail(capacity / 2) {}
 
-    int RingBuffer::read(char *buffer, int length) {
+    int Buffer::read(char *buffer, int length) {
         if (buffer == nullptr) {
             return 0;
         }
@@ -38,7 +38,7 @@ namespace R {
         return readMax;
     }
 
-    int RingBuffer::write(const char *buffer, int length) {
+    int Buffer::write(const char *buffer, int length) {
         if (buffer == nullptr) {
             return 0;
         }
@@ -59,41 +59,41 @@ namespace R {
         return writeMax;
     }
 
-    int RingBuffer::length() const { return mCapacity - mAvailable; }
+    int Buffer::length() const { return mCapacity - mAvailable; }
 
-    int RingBuffer::capacity() const { return mCapacity; }
+    int Buffer::capacity() const { return mCapacity; }
 
-    int RingBuffer::available() const { return mAvailable; }
+    int Buffer::available() const { return mAvailable; }
 
-    RingBuffer::~RingBuffer() { delete[] mBuffer; }
+    Buffer::~Buffer() { delete[] mBuffer; }
 
-    bool RingBuffer::empty() const { return mAvailable == mCapacity; }
+    bool Buffer::empty() const { return mAvailable == mCapacity; }
 
-    uint8_t RingBuffer::read1() {
+    uint8_t Buffer::read1() {
         uint8_t b;
         int c = read(reinterpret_cast<char *>(&b), 1);
         return c < 0 ? c : b;
     }
 
-    uint16_t RingBuffer::read2() {
+    uint16_t Buffer::read2() {
         uint16_t b;
         int c = read(reinterpret_cast<char *>(&b), 2);
         return c < 0 ? c : b;
     }
 
-    uint32_t RingBuffer::read4() {
+    uint32_t Buffer::read4() {
         uint32_t b;
         int c = read(reinterpret_cast<char *>(&b), 4);
         return c < 0 ? c : b;
     }
 
-    uint64_t RingBuffer::read64() {
+    uint64_t Buffer::read64() {
         uint64_t b;
         int c = read(reinterpret_cast<char *>(&b), 8);
         return c < 0 ? c : b;
     }
 
-    int RingBuffer::writeTo(RingBuffer *dstBuffer) {
+    int Buffer::writeTo(Buffer *dstBuffer) {
         if (dstBuffer == nullptr) {
             return 0;
         }
@@ -114,11 +114,11 @@ namespace R {
         return writeSize;
     }
 
-    int RingBuffer::readFrom(RingBuffer *buffer) {
+    int Buffer::readFrom(Buffer *buffer) {
         return readFrom(buffer, buffer->length());
     }
 
-    int RingBuffer::readFrom(RingBuffer *buffer, int size) {
+    int Buffer::readFrom(Buffer *buffer, int size) {
         if (buffer == nullptr) {
             return 0;
         }
@@ -139,11 +139,11 @@ namespace R {
         return readSize;
     }
 
-    bool RingBuffer::notEmpty() const {
+    bool Buffer::notEmpty() const {
         return length();
     }
 
-    void RingBuffer::unread(int n) {
+    void Buffer::unread(int n) {
         if (length() == 0 || available() == 0) {
             return;
         }
@@ -152,7 +152,7 @@ namespace R {
         mAvailable -= max;
     }
 
-    uint8_t RingBuffer::get(int i) {
+    uint8_t Buffer::get(int i) {
         if (length() <= i) {
             return -1;
         }
@@ -163,7 +163,7 @@ namespace R {
         return mBuffer[index];
     }
 
-    void RingBuffer::set(int i, uint8_t value) {
+    void Buffer::set(int i, uint8_t value) {
         if (i < 0 && i >= length()) {
             return;
         }
@@ -174,23 +174,23 @@ namespace R {
         mBuffer[index] = value;
     }
 
-    int RingBuffer::write1(uint8_t data) {
+    int Buffer::write1(uint8_t data) {
         return write(reinterpret_cast<const char *>(&data), sizeof(data));
     }
 
-    int RingBuffer::write2(uint16_t data) {
+    int Buffer::write2(uint16_t data) {
         return write(reinterpret_cast<const char *>(&data), sizeof(data));
     }
 
-    int RingBuffer::write4(uint32_t data) {
+    int Buffer::write4(uint32_t data) {
         return write(reinterpret_cast<const char *>(&data), sizeof(data));
     }
 
-    int RingBuffer::write8(uint64_t data) {
+    int Buffer::write8(uint64_t data) {
         return write(reinterpret_cast<const char *>(&data), sizeof(data));
     }
 
-    std::string RingBuffer::toString() {
+    std::string Buffer::toString() {
         if (length() == 0) {
             return "";
         }

@@ -26,7 +26,7 @@ MY_SRC_FILES := \
 				$(LOCAL_PATH)/Socks5Config.cpp \
 				$(LOCAL_PATH)/Util.cpp \
 				$(LOCAL_PATH)/EventLoop.cpp \
-				$(LOCAL_PATH)/RingBuffer.cpp \
+				$(LOCAL_PATH)/Buffer.cpp \
 				$(LOCAL_PATH)/Tunnel.cpp \
 				$(LOCAL_PATH)/Socks5Tunnel.cpp \
 				$(LOCAL_PATH)/Socks5Server.cpp \

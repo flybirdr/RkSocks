@@ -2,15 +2,15 @@
 // Created by 张开海 on 2023/11/2.
 //
 
-#ifndef R_RINGBUFFER_H
-#define R_RINGBUFFER_H
+#ifndef R_BUFFER_H
+#define R_BUFFER_H
 
 #include <unistd.h>
 #include <string>
 
 namespace R {
 
-    class RingBuffer {
+    class Buffer {
 
         char *mBuffer;
         int mCapacity;
@@ -19,23 +19,23 @@ namespace R {
         int mTail;
 
     public:
-        RingBuffer(int capacity);
+        Buffer(int capacity);
 
-        virtual ~RingBuffer();
+        virtual ~Buffer();
 
         /**
          * 将本buffer写入dst
          * @return 实际写入的字节数
          */
-        int writeTo(RingBuffer *dstBuffer);
+        int writeTo(Buffer *dstBuffer);
 
         /**
          * 从srcBuffer中拷贝内容
          * @return 实际拷贝的字节数
          */
-        int readFrom(RingBuffer *buffer);
+        int readFrom(Buffer *buffer);
 
-        int readFrom(RingBuffer *buffer, int size);
+        int readFrom(Buffer *buffer, int size);
 
         int write(const char *buffer, int length);
 
@@ -124,4 +124,4 @@ namespace R {
 
 } // R
 
-#endif //R_RINGBUFFER_H
+#endif //R_BUFFER_H

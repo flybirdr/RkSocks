@@ -13,7 +13,7 @@ namespace R {
 
     class Socks5UdpTunnel : public UDPTunnel {
     private:
-        RingBuffer *mHeader;
+        Buffer *mHeader;
 
         Socks5UdpTunnel(int bufferLen,
                         std::shared_ptr<EventLoop> &loop,
@@ -32,7 +32,7 @@ namespace R {
 
         void initialize(char *buffer, int len);
 
-        int parseHeaderAndAddr(RingBuffer* buffer);
+        int parseHeaderAndAddr(Buffer* buffer);
 
         bool attachOutboundContext() override;
 
