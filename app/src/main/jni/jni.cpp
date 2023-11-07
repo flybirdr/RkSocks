@@ -185,6 +185,8 @@ hev_config_parse_socks5(yaml_document_t *doc, yaml_node_t *base) {
         fprintf(stderr, "Must be set both socks5 username and password!\n");
         return -1;
     }
+
+    gSocks5Config.serverAddr = std::string(addr);
     gSocks5Config.serverPort = strtoul(port, NULL, 10);
 
     if (user && pass) {
