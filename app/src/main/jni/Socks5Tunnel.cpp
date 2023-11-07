@@ -130,7 +130,7 @@ namespace R {
         //1、进行鉴权
         if (handshake == SOCKS5_HANDSHAKE::SOCKS5_STEP2) {
 
-            int version = inBuffer->read1();
+            int version = inBuffer->read8();
             if (version != 0x01) {
                 LOGE("unsupported socket version=%d", version);
                 return;
@@ -139,7 +139,7 @@ namespace R {
             char response[2] = {0x01, 0x01};
             switch (mSocksInfo->method) {
                 case 0x02: {
-                    int userLen = inBuffer->read1();
+                    int userLen = inBuffer->read8();
                     if (userLen - inBuffer->length() > 0) {
                         LOGE("readFrom invalid length=%d", length);
                         return;
@@ -148,7 +148,7 @@ namespace R {
                     inBuffer->read(userNameChar, userLen);
                     std::string userName(userNameChar, userLen);
 
-                    int passLen = inBuffer->read1();
+                    int passLen = inBuffer->read8();
                     if (passLen - inBuffer->length() > 0) {
                         LOGE("readFrom invalid length=%d", length);
                         return;
@@ -181,14 +181,14 @@ namespace R {
         //3、对于BIND、UDP当客户端连入后建立数据转发通道
         if (handshake == SOCKS5_HANDSHAKE::SOCKS5_STEP3) {
             int oriLength = inBuffer->length();
-            int version = inBuffer->read1();
+            int version = inBuffer->read8();
             if (version != 0x05) {
                 LOGE("unsupported socket version=%d", version);
                 return;
             }
-            int cmd = inBuffer->read1();
-            int rev = inBuffer->read1();
-            int atyp = inBuffer->read1();
+            int cmd = inBuffer->read8();
+            int rev = inBuffer->read8();
+            int atyp = inBuffer->read8();
             int addrLen = 0;
 
             //ipv4
@@ -197,7 +197,7 @@ namespace R {
             }
                 //域名
             else if (atyp == 0x03) {
-                addrLen = inBuffer->read1();
+                addrLen = inBuffer->read8();
             }
                 //ipv6
             else if (atyp == 0x04) {
@@ -206,7 +206,7 @@ namespace R {
             char addrBuffer[addrLen];
 
             inBuffer->read(addrBuffer, addrLen);
-            uint16_t port = inBuffer->read2();
+            uint16_t port = inBuffer->read16();
 
             mSocksInfo->handshake = SOCKS5_HANDSHAKE::SOCKS5_FINISH;
             mSocksInfo->remoteAddr = inet_ntoa(*(in_addr *) addrBuffer);
@@ -218,20 +218,20 @@ namespace R {
             int headerLen = oriLength - inBuffer->length();
 
             Buffer response{headerLen};
-            response.write1(version);
-            response.write1(0x00);
-            response.write1(0x00);
-            response.write1(atyp);
+            response.write8(version);
+            response.write8(0x00);
+            response.write8(0x00);
+            response.write8(atyp);
             //域名和IPV6目前不支持，设置REP为0x08
             if (atyp == 0x03) {
-                response.write1(addrLen);
+                response.write8(addrLen);
                 response.set(1, 0x08);
             } else if (atyp == 0x04) {
                 response.set(1, 0x08);
             }
             if (cmd == 0x01) {
                 response.write(addrBuffer, addrLen);
-                response.write2(port);
+                response.write16(port);
                 //创建远程连接
                 if (!attachOutboundContext()) {
                     LOGE("connect to remote failed!");
@@ -255,12 +255,12 @@ namespace R {
                         handleClosed(mBindFakeTunnelContext);
                     }
                     //todo ipv6 domain
-                    response.write4(bindAddrIn.sin_addr.s_addr);
-                    response.write2(bindAddrIn.sin_port);
+                    response.write32(bindAddrIn.sin_addr.s_addr);
+                    response.write16(bindAddrIn.sin_port);
                 } else {
                     response.set(1, 0x01);
                     response.write(addrBuffer, addrLen);
-                    response.write2(port);
+                    response.write16(port);
                 }
             }
                 //UDP ASSOCIATE
@@ -275,19 +275,19 @@ namespace R {
                         handleClosed(mUdpFakeTunnelContext);
                     }
                     //todo ipv6 domain
-                    response.write4(udpServerAddrIn.sin_addr.s_addr);
-                    response.write2(udpServerAddrIn.sin_port);
+                    response.write32(udpServerAddrIn.sin_addr.s_addr);
+                    response.write16(udpServerAddrIn.sin_port);
                 } else {
                     response.set(1, 0x01);
                     response.write(addrBuffer, addrLen);
-                    response.write2(port);
+                    response.write16(port);
                 }
                 LOGI("handle udp associate to %s:%d", inet_ntoa(*(in_addr *) addrBuffer),
                      ntohs(port));
             } else {
                 response.set(1, 0x07);
                 response.write(addrBuffer, addrLen);
-                response.write2(port);
+                response.write16(port);
             }
             LOGI("step3 response=%s", response.toString().c_str());
             response.writeTo(outBuffer);
@@ -553,12 +553,12 @@ namespace R {
 
         //BIND response
         Buffer response(100);
-        response.write1(0x05);
-        response.write1(0x00);
-        response.write1(0x00);
-        response.write1(0x01);
-        response.write4(acceptAddr.sin_addr.s_addr);
-        response.write2(acceptAddr.sin_port);
+        response.write8(0x05);
+        response.write8(0x00);
+        response.write8(0x00);
+        response.write8(0x01);
+        response.write32(acceptAddr.sin_addr.s_addr);
+        response.write16(acceptAddr.sin_port);
         response.writeTo(outbound->inBuffer);
         //注册事件
         if (!mLooper->registerOnReadOnly(outbound->fd, outbound)) {

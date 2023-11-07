@@ -36,28 +36,28 @@ namespace R {
     }
 
     int Socks5UdpTunnel::parseHeaderAndAddr(Buffer *buffer) {
-        int rsv = buffer->read2();
-        int frag = buffer->read1();
-        int atyp = buffer->read1();
+        int rsv = buffer->read16();
+        int frag = buffer->read8();
+        int atyp = buffer->read8();
         int dstAddrLen = 0;
         char *addrStr;
         if (atyp == 0x01) {
-            int dstAddr = buffer->read4();
+            int dstAddr = buffer->read32();
             in_addr inAddr{0};
             inAddr.s_addr = dstAddr;
             addrStr = inet_ntoa(inAddr);
             dstAddrLen = 4;
             mRemoteAddr.sin_addr.s_addr = dstAddr;
         } else if (atyp == 0x03) {
-            dstAddrLen = buffer->read1();
+            dstAddrLen = buffer->read8();
             char *domainBuffer = new char[dstAddrLen];
             buffer->read(domainBuffer, dstAddrLen);
             delete[] domainBuffer;
         } else {
-            int dstAddr = buffer->read1();
+            int dstAddr = buffer->read8();
             dstAddrLen = 16;
         }
-        int port = buffer->read2();
+        int port = buffer->read16();
         int headerLen = 2 + 1 + 1 + dstAddrLen + 2;
         int dataLen = buffer->length();
         buffer->unread(headerLen);

@@ -16,8 +16,8 @@ namespace R {
               mHead(capacity / 2),
               mTail(capacity / 2) {}
 
-    int Buffer::read(char *buffer, int length) {
-        if (buffer == nullptr) {
+    int Buffer::read(char *dst, int length) {
+        if (dst == nullptr) {
             return 0;
         }
         int readMax = std::min(mCapacity - mAvailable, length);
@@ -26,11 +26,11 @@ namespace R {
         }
         if (mHead + readMax >= mCapacity) {
             int first = mCapacity - mHead;
-            memcpy(buffer, mBuffer + mHead, first);
-            memcpy(buffer + first, mBuffer, readMax - first);
+            memcpy(dst, mBuffer + mHead, first);
+            memcpy(dst + first, mBuffer, readMax - first);
             mHead = readMax - first;
         } else {
-            memcpy(buffer, mBuffer + mHead, readMax);
+            memcpy(dst, mBuffer + mHead, readMax);
             mHead += readMax;
         }
         mAvailable += readMax;
@@ -38,8 +38,8 @@ namespace R {
         return readMax;
     }
 
-    int Buffer::write(const char *buffer, int length) {
-        if (buffer == nullptr) {
+    int Buffer::write(const char *src, int length) {
+        if (src == nullptr) {
             return 0;
         }
         int writeMax = std::min(length, mAvailable);
@@ -48,11 +48,11 @@ namespace R {
         }
         if (mTail + writeMax >= mCapacity) {
             int first = mCapacity - mTail;
-            memcpy(mBuffer + mTail, buffer, first);
-            memcpy(mBuffer, buffer + first, writeMax - first);
+            memcpy(mBuffer + mTail, src, first);
+            memcpy(mBuffer, src + first, writeMax - first);
             mTail = writeMax - first;
         } else {
-            memcpy(mBuffer + mTail, buffer, writeMax);
+            memcpy(mBuffer + mTail, src, writeMax);
             mTail += writeMax;
         }
         mAvailable -= writeMax;
@@ -69,19 +69,19 @@ namespace R {
 
     bool Buffer::empty() const { return mAvailable == mCapacity; }
 
-    uint8_t Buffer::read1() {
+    uint8_t Buffer::read8() {
         uint8_t b;
         int c = read(reinterpret_cast<char *>(&b), 1);
         return c < 0 ? c : b;
     }
 
-    uint16_t Buffer::read2() {
+    uint16_t Buffer::read16() {
         uint16_t b;
         int c = read(reinterpret_cast<char *>(&b), 2);
         return c < 0 ? c : b;
     }
 
-    uint32_t Buffer::read4() {
+    uint32_t Buffer::read32() {
         uint32_t b;
         int c = read(reinterpret_cast<char *>(&b), 4);
         return c < 0 ? c : b;
@@ -93,46 +93,46 @@ namespace R {
         return c < 0 ? c : b;
     }
 
-    int Buffer::writeTo(Buffer *dstBuffer) {
-        if (dstBuffer == nullptr) {
+    int Buffer::writeTo(Buffer *dst) {
+        if (dst == nullptr) {
             return 0;
         }
-        int writeSize = std::min(dstBuffer->mAvailable, length());
+        int writeSize = std::min(dst->mAvailable, length());
         if (writeSize == 0) {
             return 0;
         }
         if (mHead + writeSize >= mCapacity) {
             int first = mCapacity - mHead;
-            dstBuffer->write(mBuffer + mHead, first);
-            dstBuffer->write(mBuffer, writeSize - first);
+            dst->write(mBuffer + mHead, first);
+            dst->write(mBuffer, writeSize - first);
             mHead = writeSize - first;
         } else {
-            dstBuffer->write(mBuffer + mHead, writeSize);
+            dst->write(mBuffer + mHead, writeSize);
             mHead += writeSize;
         }
         mAvailable += writeSize;
         return writeSize;
     }
 
-    int Buffer::readFrom(Buffer *buffer) {
-        return readFrom(buffer, buffer->length());
+    int Buffer::readFrom(Buffer *src) {
+        return readFrom(src, src->length());
     }
 
-    int Buffer::readFrom(Buffer *buffer, int size) {
-        if (buffer == nullptr) {
+    int Buffer::readFrom(Buffer *src, int length) {
+        if (src == nullptr) {
             return 0;
         }
-        int readSize = std::min(size, std::min(buffer->length(), mAvailable));
+        int readSize = std::min(length, std::min(src->length(), mAvailable));
         if (readSize == 0) {
             return 0;
         }
         if (mTail + readSize >= mCapacity) {
             int first = mCapacity - mTail;
-            buffer->read(mBuffer + mTail, first);
-            buffer->read(mBuffer, readSize - first);
+            src->read(mBuffer + mTail, first);
+            src->read(mBuffer, readSize - first);
             mTail = readSize - first;
         } else {
-            buffer->read(mBuffer + mTail, readSize);
+            src->read(mBuffer + mTail, readSize);
             mTail += readSize;
         }
         mAvailable -= readSize;
@@ -174,19 +174,19 @@ namespace R {
         mBuffer[index] = value;
     }
 
-    int Buffer::write1(uint8_t data) {
+    int Buffer::write8(uint8_t data) {
         return write(reinterpret_cast<const char *>(&data), sizeof(data));
     }
 
-    int Buffer::write2(uint16_t data) {
+    int Buffer::write16(uint16_t data) {
         return write(reinterpret_cast<const char *>(&data), sizeof(data));
     }
 
-    int Buffer::write4(uint32_t data) {
+    int Buffer::write32(uint32_t data) {
         return write(reinterpret_cast<const char *>(&data), sizeof(data));
     }
 
-    int Buffer::write8(uint64_t data) {
+    int Buffer::write64(uint64_t data) {
         return write(reinterpret_cast<const char *>(&data), sizeof(data));
     }
 
