@@ -7,21 +7,29 @@
 
 #include <unistd.h>
 #include <string>
+#include "BufferUtil.h"
 
 namespace R {
 
     class Buffer {
+        friend class BufferUtil;
 
         char *mBuffer;
         int mCapacity;
         int mAvailable;
         int mHead;
         int mTail;
-
+        bool mRing;
     public:
         Buffer(int capacity);
 
+        Buffer(int capacity, int start, bool ring);
+
         virtual ~Buffer();
+
+        char *getBuffer() {
+            return mBuffer + mTail;
+        };
 
         /**
          * 将本buffer写入dst
@@ -75,7 +83,7 @@ namespace R {
 
         uint8_t get(int i);
 
-        void set(int i,uint8_t value);
+        void set(int i, uint8_t value);
 
         int write8(uint8_t data);
 
@@ -86,6 +94,7 @@ namespace R {
         int write64(uint64_t data);
 
         std::string toString();
+
 
     };
 

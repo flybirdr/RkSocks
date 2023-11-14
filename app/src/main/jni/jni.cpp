@@ -217,13 +217,13 @@ Java_com_rookie_r_TunService_nativeStart(JNIEnv *env, jobject thiz,
 
     fp = fopen(configPath, "r");
     if (!fp) {
-        fprintf(stderr, "Open %s failed!\n", config_path);
+        fprintf(stderr, "Open %s failed!\n", configPath);
         goto exit_free_parser;
     }
 
     yaml_parser_set_input_file(&parser, fp);
     if (!yaml_parser_load(&parser, &doc)) {
-        fprintf(stderr, "Parse %s failed!\n", config_path);
+        fprintf(stderr, "Parse %s failed!\n", configPath);
         goto exit_close_fp;
     }
 

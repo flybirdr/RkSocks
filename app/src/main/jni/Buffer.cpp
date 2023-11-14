@@ -10,11 +10,21 @@
 
 namespace R {
     Buffer::Buffer(int capacity)
+            : Buffer(capacity, 0, true) {
+
+    }
+
+    Buffer::Buffer(int capacity, int start, bool ring)
             : mBuffer(new char[capacity]),
               mCapacity(capacity),
               mAvailable(capacity),
-              mHead(capacity / 2),
-              mTail(capacity / 2) {}
+              mHead(start),
+              mTail(start),
+              mRing(ring) {
+        if (mHead < 0 || mHead >= mCapacity) {
+            mHead = mTail = 0;
+        }
+    }
 
     int Buffer::read(char *dst, int length) {
         if (dst == nullptr) {
@@ -28,10 +38,12 @@ namespace R {
             int first = mCapacity - mHead;
             memcpy(dst, mBuffer + mHead, first);
             memcpy(dst + first, mBuffer, readMax - first);
-            mHead = readMax - first;
+            if (mRing)
+                mHead = readMax - first;
         } else {
             memcpy(dst, mBuffer + mHead, readMax);
-            mHead += readMax;
+            if (mRing)
+                mHead += readMax;
         }
         mAvailable += readMax;
 
@@ -105,10 +117,12 @@ namespace R {
             int first = mCapacity - mHead;
             dst->write(mBuffer + mHead, first);
             dst->write(mBuffer, writeSize - first);
-            mHead = writeSize - first;
+            if (mRing)
+                mHead = writeSize - first;
         } else {
             dst->write(mBuffer + mHead, writeSize);
-            mHead += writeSize;
+            if (mRing)
+                mHead += writeSize;
         }
         mAvailable += writeSize;
         return writeSize;
@@ -144,7 +158,7 @@ namespace R {
     }
 
     void Buffer::unread(int n) {
-        if (length() == 0 || available() == 0) {
+        if (!mRing || length() == 0 || available() == 0) {
             return;
         }
         int max = std::min(available(), n);
@@ -213,4 +227,6 @@ namespace R {
         }
         return os.str();
     }
+
+
 }  // namespace R

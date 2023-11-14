@@ -39,9 +39,9 @@ class TunService : VpnService() {
 
         fun startService(context: Context, config: VpnConfig): Intent {
             val intent = Intent(context, TunService::class.java).apply {
-                Logger.log(TAG, "before serialization: $config")
+                //Logger.log(TAG, "before serialization: $config")
                 val configJson = Json.encodeToString(config)
-                Logger.log(TAG, "after serialization: $configJson")
+                //Logger.log(TAG, "after serialization: $configJson")
                 putExtra(CONFIG, configJson)
                 putExtra(COMMAND, CMD_ON)
             }
